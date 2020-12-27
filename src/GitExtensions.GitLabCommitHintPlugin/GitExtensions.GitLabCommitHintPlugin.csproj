@@ -1,0 +1,58 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net461</TargetFramework>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="GitExtensions.Extensibility" Version="0.1.1.40" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="3.1.9" />
+    <PackageReference Include="Microsoft.VisualStudio.Threading" Version="16.5.132" />
+    <PackageReference Include="NString" Version="1.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GitLabApiClient\GitLabApiClient.csproj" />
+  </ItemGroup>
+
+  <!-- Reference to GitExtensions dlls. -->
+  <ItemGroup>
+    <Reference Include="GitCommands">
+      <HintPath>$(GitExtensionsPath)\GitCommands.dll</HintPath>
+      <!--<HintPath>F:\git\gitextensions\artifacts\bin\GitExtensions\Debug\net461\GitCommands.dll</HintPath>-->
+    </Reference>
+    <Reference Include="GitExtUtils">
+      <HintPath>$(GitExtensionsPath)\GitExtUtils.dll</HintPath>
+      <!--<HintPath>F:\git\gitextensions\artifacts\bin\GitExtensions\Debug\net461\GitExtUtils.dll</HintPath>-->
+    </Reference>
+    <Reference Include="GitUI">
+      <HintPath>$(GitExtensionsPath)\GitUI.dll</HintPath>
+      <!--<HintPath>F:\git\gitextensions\artifacts\bin\GitExtensions\Debug\net461\GitUI.dll</HintPath>-->
+    </Reference>
+    <Reference Include="GitUIPluginInterfaces">
+      <HintPath>$(GitExtensionsPath)\GitUIPluginInterfaces.dll</HintPath>
+      <!--<HintPath>F:\git\gitextensions\artifacts\bin\GitExtensions\Debug\net461\GitUIPluginInterfaces.dll</HintPath>-->
+    </Reference>
+    <Reference Include="ResourceManager">
+      <HintPath>$(GitExtensionsPath)\ResourceManager.dll</HintPath>
+      <!--<HintPath>F:\git\gitextensions\artifacts\bin\GitExtensions\Debug\net461\ResourceManager.dll</HintPath>-->
+    </Reference>
+    <Reference Include="System.ComponentModel.Composition" />
+    <Reference Include="System.DirectoryServices" />
+    <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
+
+  <!-- Pack as .nupkg with dependency on GitExtensions.Extensibility -->
+  <PropertyGroup>
+    <NuspecFile>$(MSBuildThisFileDirectory)$(MSBuildProjectName).nuspec</NuspecFile>
+    <Authors>martin211</Authors>
+    <Company></Company>
+    <Description>GitLab commit hint plugin for Git Extensions.</Description>
+    <PackageProjectUrl>https://github.com/martin211/GitExtensions.GitLabCommitHintPlugin</PackageProjectUrl>
+    <PackageTags>GitExtensions</PackageTags>
+    <AssemblyName>GitExtensions.GitLabCommitHintPlugin</AssemblyName>
+  </PropertyGroup>
+</Project>
