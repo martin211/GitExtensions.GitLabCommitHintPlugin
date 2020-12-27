@@ -1,0 +1,1 @@
+# GitExtensions.GitLabCommitHintPlugin
