@@ -15,8 +15,12 @@ build:
     - "cd $build_path"
     - "dotnet build --no-restore"
 
-pack:
-  stage: pack
+deploy:
+  stage: deploy
   script:
     - "cd $build_path"
-    - "dotnet pack"
+    - dotnet pack -c Release
+    - dotnet nuget add source "$CI_SERVER_URL/api/v4/projects/packages/packages/nuget/index.json" --name GitLab --username gitlab-ci-token --password $CI_JOB_TOKEN --store-password-in-clear-text
+    - dotnet nuget push "bin/Release/*.nupkg" --source gitlab
+  only:
+    - master
