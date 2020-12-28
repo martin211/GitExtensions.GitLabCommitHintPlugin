@@ -2,12 +2,12 @@ stages:
   - build
   - deploy
 
+variables:
+  build_path: "$project/src/$project"
+
 before_script:
-  variables:
-    build_path: "$project/src/$project"
-  script:
-    - "cd $build_path"
-    - "dotnet restore"
+  - "cd $build_path"
+  - "dotnet restore"
 
 build:
   stage: build
