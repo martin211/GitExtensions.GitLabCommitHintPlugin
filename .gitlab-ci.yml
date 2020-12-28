@@ -13,4 +13,10 @@ build:
   stage: build
   script:
     - "cd $build_path"
-    - "dotnet build"
+    - "dotnet build --no-restore"
+
+pack:
+  stage: pack
+  script:
+    - "cd $build_path"
+    - "dotnet pack"
