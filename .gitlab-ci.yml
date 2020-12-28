@@ -8,7 +8,7 @@ variables:
 before_script:
   - cd $build_path
   - dotnet restore
-  - gitversion /output buildserver
+  - c:\tools\gitversion\gitversion /output buildserver
 
 build:
   stage: build
