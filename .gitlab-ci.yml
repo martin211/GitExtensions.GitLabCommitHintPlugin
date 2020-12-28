@@ -6,20 +6,21 @@ variables:
   build_path: "$CI_PROJECT_DIR/src/"
 
 before_script:
-  - "cd $build_path"
-  - "dotnet restore"
+  - cd $build_path
+  - dotnet restore
+  - gitversion /output buildserver
 
 build:
   stage: build
   script:
-    - "cd $build_path"
-    - "dotnet build --no-restore"
+    - cd $build_path
+    - dotnet build --no-restore
 
 deploy:
   stage: deploy
   script:
-    - "cd $build_path"
-    - dotnet pack -c Release
+    - cd $build_path
+    - dotnet pack -c Release --no-restore
     - dotnet nuget add source "$CI_SERVER_URL/api/v4/projects/packages/packages/nuget/index.json" --name GitLab --username gitlab-ci-token --password $CI_JOB_TOKEN --store-password-in-clear-text
     - dotnet nuget push "bin/Release/*.nupkg" --source gitlab
   only:
