@@ -3,7 +3,7 @@ stages:
   - deploy
 
 variables:
-  build_path: "$project/src/$project"
+  build_path: "$CI_PROJECT_DIR/src/"
 
 before_script:
   - "cd $build_path"
@@ -11,8 +11,6 @@ before_script:
 
 build:
   stage: build
-  variables:
-    build_path: "$project/src/$project"
   script:
     - "cd $build_path"
     - "dotnet build"
