@@ -1,0 +1,16 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  build_path: "$CI_PROJECT_DIR/src/"
+
+before_script:
+  - "cd $build_path"
+  - "dotnet restore"
+
+build:
+  stage: build
+  script:
+    - "cd $build_path"
+    - "dotnet build"
