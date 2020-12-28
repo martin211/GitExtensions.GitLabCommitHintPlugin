@@ -23,4 +23,4 @@ deploy:
     - dotnet nuget add source "$CI_SERVER_URL/api/v4/projects/packages/packages/nuget/index.json" --name GitLab --username gitlab-ci-token --password $CI_JOB_TOKEN --store-password-in-clear-text
     - dotnet nuget push "bin/Release/*.nupkg" --source gitlab
   only:
-    - master
+    - main
