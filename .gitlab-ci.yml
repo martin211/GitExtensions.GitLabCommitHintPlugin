@@ -22,7 +22,6 @@ deploy:
     - cd $build_path
     - powershell -File $CI_PROJECT_DIR\build.ps1 Pack --Configuation Release
     - dotnet nuget list source
-    - dotnet nuget add source "$CI_SERVER_URL/api/v4/projects/52/packages/nuget/index.json" --name GitLab --username nuke --password "ERso8xqQtY8oC-xaRdbY" --store-password-in-clear-text
-    - dotnet nuget push "output/packages/*.nupkg" --source gitlab
+    - dotnet nuget push "$CI_PROJECT_DIR/output/packages/*.nupkg" --source gitlab
   only:
     - master
