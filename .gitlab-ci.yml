@@ -14,13 +14,13 @@ build:
   stage: build
   script:
     - cd $build_path
-    - powershell -File Build.ps1 Compile --Configuation Release
+    - powershell -File $build_path/build.ps1 Compile --Configuation Release
 
 deploy:
   stage: deploy
   script:
     - cd $build_path
-    - powershell -File Build.ps1 Pack --Configuation Release
+    - powershell -File $build_path/build.ps1 Pack --Configuation Release
     - dotnet nuget add source "$CI_SERVER_URL/api/v4/projects/packages/packages/nuget/index.json" --name GitLab --username gitlab-ci-token --password $CI_JOB_TOKEN --store-password-in-clear-text
     - dotnet nuget push "output/packages/*.nupkg" --source gitlab
   only:
