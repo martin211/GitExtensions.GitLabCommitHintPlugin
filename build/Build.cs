@@ -9,6 +9,7 @@ using Nuke.Common.ProjectModel;
 using Nuke.Common.Tooling;
 using Nuke.Common.Tools.DotNet;
 using Nuke.Common.Tools.GitVersion;
+using Nuke.Common.Tools.NuGet;
 using Nuke.Common.Utilities.Collections;
 using static Nuke.Common.EnvironmentInfo;
 using static Nuke.Common.IO.FileSystemTasks;
@@ -25,7 +26,7 @@ class Build : NukeBuild
     ///   - Microsoft VisualStudio     https://nuke.build/visualstudio
     ///   - Microsoft VSCode           https://nuke.build/vscode
 
-    public static int Main () => Execute<Build>(x => x.Compile);
+    public static int Main () => Execute<Build>(x => x.Pack);
 
     [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
     readonly Configuration Configuration = IsLocalBuild ? Configuration.Debug : Configuration.Release;
@@ -68,14 +69,18 @@ class Build : NukeBuild
 
     Target Pack => _ => _
         .DependsOn(Compile)
-        .Produces("*.nuspec")
+        //.Produces("*.nuspec")
         .Executes(() =>
         {
-            DotNetPack(_ => _
-                .SetProject(Solution)
-                .SetNoBuild(InvokedTargets.Contains(Compile))
+            var targetDir = SourceDirectory.GlobDirectories($"GitExtensions.GitLabCommitHintPlugin/bin/{Configuration}").First();
+
+            NuGetTasks.NuGetPack(_ => _
+                .SetTargetPath(SourceDirectory / "GitExtensions.GitLabCommitHintPlugin" / "GitExtensions.GitLabCommitHintPlugin.nuspec")
+                .SetBasePath(RootDirectory)
                 .SetConfiguration(Configuration)
+                .SetVersion(GitVersion.NuGetVersionV2)
                 .SetOutputDirectory(PackageDirectory)
-                .SetVersion(GitVersion.NuGetVersionV2));
+                .SetProperty("targetDir", $"{targetDir}\\")
+                .SetProperty("id", "GitExtensions.GitLabCommitHintPlugin"));
         });
 }
