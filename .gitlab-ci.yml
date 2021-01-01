@@ -9,7 +9,7 @@ variables:
 
 cache:
   key: ${CI_COMMIT_REF_SLUG}
-  path:
+  paths:
     - src/packages/
     - gitextensions.shared/
     - $output_packages_path
@@ -30,7 +30,7 @@ pack:
     - cd $build_path
     - powershell -File $CI_PROJECT_DIR\build.ps1 Pack --Configuation Release
   artifacts:
-    path:
+    paths:
       - $output_packages_path
   only:
     - master
