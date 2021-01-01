@@ -84,9 +84,11 @@ class Build : NukeBuild
             var files = OutputDirectory.GlobFiles("packages/*.nupkg");
             foreach (var file in files)
             {
-                DotNetNuGetPush(_ => _
+                var output = DotNetNuGetPush(_ => _
                     .SetTargetPath(file)
                     .SetSource("GitLab"));
+
+                Logger.Log(LogLevel.Normal, string.Join("", output.Select(c => c.Text)));
             }
         });
 }

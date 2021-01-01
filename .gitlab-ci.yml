@@ -31,7 +31,7 @@ pack:
     - powershell -File $CI_PROJECT_DIR\build.ps1 Pack --Configuation Release
   artifacts:
     paths:
-      - $output_packages_path
+      - $CI_PROJECT_DIR/output/packages/
   only:
     - master
 
