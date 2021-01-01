@@ -3,19 +3,17 @@
   <metadata>
     <id>$id$</id>
     <version>$version$</version>
-    <authors>$author$</authors>
-    <description>$description$</description>
-    <projectUrl>$projectUrl$</projectUrl>
-    <tags>$tags$</tags>
+    <authors>martin211 (Evgeniy Bogdan)</authors>
+    <description>GitLab Commit Hint Plugin for GitExtensions</description>
+    <projectUrl>https://github.com/martin211/GitExtensions.GitLabCommitHintPlugin</projectUrl>
+    <tags>GitExtensions,GitLab</tags>
     <dependencies>
       <dependency id="GitExtensions.Extensibility" version="[0.1.0, 1.0.0)" />
+      <dependency id="Newtonsoft.Json" version="10.0.3" />
     </dependencies>
   </metadata>
   <files>
     <file src="$targetDir$$id$.dll" target="/lib" />
-    <file src="$targetDir$$id$.pdb" target="/lib" />
-    <file src="$targetDir$GitExtensions.GitLabCommitHintPlugin.dll" target="/lib" />
-    <file src="$targetDir$GitExtensions.GitLabCommitHintPlugin.pdb" target="/lib" />
     <file src="$targetDir$GitLabApiClient.dll" target="/lib" />
     <file src="$targetDir$Newtonsoft.Json.dll" target="/lib" />
   </files>
