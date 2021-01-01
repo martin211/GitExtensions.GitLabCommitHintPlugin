@@ -81,7 +81,7 @@ class Build : NukeBuild
     Target Deploy => _ => _
         .Executes(() =>
         {
-            var files = SourceDirectory.GlobDirectories(OutputDirectory / "packages").First().GlobFiles("*.nupkg");
+            var files = OutputDirectory.GlobFiles("packages/*.nupkg");
             foreach (var file in files)
             {
                 DotNetNuGetPush(_ => _

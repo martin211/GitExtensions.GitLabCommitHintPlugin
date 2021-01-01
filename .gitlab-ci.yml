@@ -10,7 +10,7 @@ variables:
 cache:
   key: ${CI_COMMIT_REF_SLUG}
   paths:
-    - src/packages/
+    - $build_path/packages/
     - gitextensions.shared/
     - $output_packages_path
 
