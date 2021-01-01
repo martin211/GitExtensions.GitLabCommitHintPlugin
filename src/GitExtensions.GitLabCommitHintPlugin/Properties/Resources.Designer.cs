@@ -63,9 +63,9 @@ namespace GitExtensions.GitLabCommitHintPlugin.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        internal static System.Drawing.Bitmap Icon {
+        internal static System.Drawing.Bitmap gitlab {
             get {
-                object obj = ResourceManager.GetObject("Icon", resourceCulture);
+                object obj = ResourceManager.GetObject("gitlab", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

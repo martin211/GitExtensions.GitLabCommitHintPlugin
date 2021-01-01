@@ -4,7 +4,6 @@
     <TargetFramework>net461</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 
   <ItemGroup>

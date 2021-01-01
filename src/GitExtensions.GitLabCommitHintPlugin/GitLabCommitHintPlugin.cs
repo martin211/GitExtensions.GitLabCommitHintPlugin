@@ -50,7 +50,8 @@ namespace GitExtensions.GitLabCommitHintPlugin
             Translate();
             _credentialsSettings = new GitLabCredentialsSetting("GitLabCredentials", "GitLab Credentials",
                 () => _gitModule?.WorkingDir);
-            Icon = Resources.Icon;
+
+            Icon = Resources.gitlab;
         }
 
         public override bool Execute(GitUIEventArgs args)
