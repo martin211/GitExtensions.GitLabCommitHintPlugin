@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GitExtensions.GitLabCommitHintPlugin.Properties;
 using GitExtUtils.GitUI;
 using GitLabApiClient;
 using GitLabApiClient.Models.Issues.Responses;
@@ -22,7 +23,6 @@ namespace GitExtensions.GitLabCommitHintPlugin
     {
         private const string DefaultFormat = "#{Id}: {Title}";
 
-        private static readonly TranslationString InvalidUrlCaption = new TranslationString("Invalid GitLab url");
         private static readonly TranslationString PreviewButtonText = new TranslationString("Preview");
 
         private readonly GitLabCredentialsSetting _credentialsSettings;
@@ -50,6 +50,7 @@ namespace GitExtensions.GitLabCommitHintPlugin
             Translate();
             _credentialsSettings = new GitLabCredentialsSetting("GitLabCredentials", "GitLab Credentials",
                 () => _gitModule?.WorkingDir);
+            Icon = Resources.Icon;
         }
 
         public override bool Execute(GitUIEventArgs args)
@@ -127,9 +128,10 @@ namespace GitExtensions.GitLabCommitHintPlugin
 
             string url = _urlSettings.ValueOrDefault(Settings);
             _credential = _credentialsSettings.GetValueOrDefault(Settings);
+            var token = _personalToken.ValueOrDefault(Settings);
 
             if (string.IsNullOrWhiteSpace(url) ||
-                string.IsNullOrWhiteSpace(_personalToken.CustomControl.Text) ||
+                string.IsNullOrWhiteSpace(token) ||
                 string.IsNullOrWhiteSpace(_credential.Password) || string.IsNullOrWhiteSpace(_credential.UserName))
             {
                 return;
