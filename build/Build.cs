@@ -1,10 +1,12 @@
 using System.Linq;
+using Microsoft.Build.Tasks;
 using Nuke.Common;
 using Nuke.Common.Execution;
 using Nuke.Common.IO;
 using Nuke.Common.ProjectModel;
 using Nuke.Common.Tools.DotNet;
 using Nuke.Common.Tools.GitVersion;
+using Nuke.Common.Tools.MSBuild;
 using Nuke.Common.Tools.NuGet;
 using Nuke.Common.Utilities.Collections;
 using static Nuke.Common.IO.FileSystemTasks;
@@ -50,13 +52,12 @@ class Build : NukeBuild
         .DependsOn(Restore)
         .Executes(() =>
         {
-            DotNetBuild(_ => _
+            MSBuildTasks.MSBuild(_ => _
                 .SetProjectFile(Solution)
                 .SetConfiguration(Configuration)
                 .SetAssemblyVersion(GitVersion.AssemblySemVer)
                 .SetFileVersion(GitVersion.AssemblySemFileVer)
-                .SetInformationalVersion(GitVersion.InformationalVersion)
-                .EnableNoRestore());
+                .SetInformationalVersion(GitVersion.InformationalVersion));
         });
 
     AbsolutePath PackageDirectory => OutputDirectory / "packages";
