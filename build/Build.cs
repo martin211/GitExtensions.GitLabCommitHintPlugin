@@ -58,14 +58,6 @@ class Build : NukeBuild
                 .SetAssemblyVersion(GitVersion.AssemblySemVer)
                 .SetFileVersion(GitVersion.AssemblySemFileVer)
                 .SetInformationalVersion(GitVersion.InformationalVersion));
-
-            //DotNetBuild(_ => _
-            //    .SetProjectFile(Solution)
-            //    .SetConfiguration(Configuration)
-            //    .SetAssemblyVersion(GitVersion.AssemblySemVer)
-            //    .SetFileVersion(GitVersion.AssemblySemFileVer)
-            //    .SetInformationalVersion(GitVersion.InformationalVersion)
-            //    .EnableNoRestore());
         });
 
     AbsolutePath PackageDirectory => OutputDirectory / "packages";
