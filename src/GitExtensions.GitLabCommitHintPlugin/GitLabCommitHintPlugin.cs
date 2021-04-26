@@ -317,7 +317,14 @@ namespace GitExtensions.GitLabCommitHintPlugin
 
                 _currentSession = await client.Users.GetCurrentSessionAsync();
             });
-            t.Wait();
+            try
+            {
+                t.Wait();
+            }
+            catch (Exception)
+            {
+                MessageBox.Show($"Unable connect to GitLab server: {url}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
 
             return client;
         }

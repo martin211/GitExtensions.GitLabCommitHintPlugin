@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GitExtensions.Extensibility" Version="0.1.1.40" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="3.1.9" />
     <PackageReference Include="Microsoft.VisualStudio.Threading" Version="16.5.132" />
     <PackageReference Include="NString" Version="1.2.0" />
@@ -20,24 +19,19 @@
   <!-- Reference to GitExtensions dlls. -->
   <ItemGroup>
     <Reference Include="GitCommands">
-      <HintPath>$(GitExtensionsPath)\GitCommands.dll</HintPath>
-      <!--<HintPath>F:\git\gitextensions\artifacts\bin\GitExtensions\Debug\net461\GitCommands.dll</HintPath>-->
+      <HintPath>..\..\gitextensions\GitCommands.dll</HintPath>
     </Reference>
     <Reference Include="GitExtUtils">
-      <HintPath>$(GitExtensionsPath)\GitExtUtils.dll</HintPath>
-      <!--<HintPath>F:\git\gitextensions\artifacts\bin\GitExtensions\Debug\net461\GitExtUtils.dll</HintPath>-->
+      <HintPath>..\..\gitextensions\GitExtUtils.dll</HintPath>
     </Reference>
     <Reference Include="GitUI">
-      <HintPath>$(GitExtensionsPath)\GitUI.dll</HintPath>
-      <!--<HintPath>F:\git\gitextensions\artifacts\bin\GitExtensions\Debug\net461\GitUI.dll</HintPath>-->
+      <HintPath>..\..\gitextensions\GitUI.dll</HintPath>
     </Reference>
     <Reference Include="GitUIPluginInterfaces">
-      <HintPath>$(GitExtensionsPath)\GitUIPluginInterfaces.dll</HintPath>
-      <!--<HintPath>F:\git\gitextensions\artifacts\bin\GitExtensions\Debug\net461\GitUIPluginInterfaces.dll</HintPath>-->
+      <HintPath>..\..\gitextensions\GitUIPluginInterfaces.dll</HintPath>
     </Reference>
     <Reference Include="ResourceManager">
-      <HintPath>$(GitExtensionsPath)\ResourceManager.dll</HintPath>
-      <!--<HintPath>F:\git\gitextensions\artifacts\bin\GitExtensions\Debug\net461\ResourceManager.dll</HintPath>-->
+      <HintPath>..\..\gitextensions\ResourceManager.dll</HintPath>
     </Reference>
     <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.DirectoryServices" />
