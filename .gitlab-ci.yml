@@ -37,7 +37,7 @@ pack:
     paths:
       - output/packages/
   only:
-    - master
+    - main
 
 deploy:
   stage: deploy
