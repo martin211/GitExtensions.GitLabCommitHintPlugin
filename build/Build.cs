@@ -1,5 +1,4 @@
 using System.Linq;
-using Microsoft.Build.Tasks;
 using Nuke.Common;
 using Nuke.Common.Execution;
 using Nuke.Common.IO;
@@ -26,6 +25,12 @@ class Build : NukeBuild
 
     [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
     readonly Configuration Configuration = IsLocalBuild ? Configuration.Debug : Configuration.Release;
+
+    [Parameter("API key for nuget feed")]
+    readonly string NugetApiKey;
+
+    [Parameter("Nuget uri or source name")]
+    readonly string NugetSource;
 
     [Solution] readonly Solution Solution;
     [GitVersion(NoFetch = true)] readonly GitVersion GitVersion;
@@ -80,9 +85,10 @@ class Build : NukeBuild
         });
 
     Target Deploy => _ => _
+        .Requires(() => NugetApiKey)
+        .Requires(() => NugetSource)
         .Executes(() =>
         {
-            
             var files = OutputDirectory.GlobFiles("packages/*.nupkg");
             foreach (var file in files)
             {
@@ -90,7 +96,8 @@ class Build : NukeBuild
 
                 var output = DotNetNuGetPush(_ => _
                     .SetTargetPath(file)
-                    .SetSource("GitLab"));
+                    .SetApiKey(NugetApiKey)
+                    .SetSource(NugetSource));
 
                 Logger.Log(LogLevel.Normal, string.Join("", output.Select(c => c.Text)));
             }

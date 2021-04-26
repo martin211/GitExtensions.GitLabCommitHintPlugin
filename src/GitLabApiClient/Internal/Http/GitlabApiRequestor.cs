@@ -21,8 +21,17 @@ namespace GitLabApiClient.Internal.Http
             _jsonSerializer = jsonSerializer;
         }
 
+        public async Task<T> Get<T>(string url, TimeSpan timeOut)
+        {
+            _client.Timeout = timeOut;
+            HttpResponseMessage responseMessage = await _client.GetAsync(url);
+            await EnsureSuccessStatusCode(responseMessage);
+            return await ReadResponse<T>(responseMessage);
+        }
+
         public async Task<T> Get<T>(string url)
         {
+            _client.Timeout = TimeSpan.FromSeconds(2);
             HttpResponseMessage responseMessage = await _client.GetAsync(url);
             await EnsureSuccessStatusCode(responseMessage);
             return await ReadResponse<T>(responseMessage);

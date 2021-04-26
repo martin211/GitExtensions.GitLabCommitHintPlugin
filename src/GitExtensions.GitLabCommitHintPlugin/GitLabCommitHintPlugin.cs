@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GitExtensions.GitLabCommitHintPlugin.Properties;
@@ -32,7 +34,7 @@ namespace GitExtensions.GitLabCommitHintPlugin
         private readonly StringSetting _urlSettings = new StringSetting("GitLab URL", @"https://www.gitlab.com/");
         private readonly StringSetting _projectSettings = new StringSetting("Project Id", string.Empty);
         private readonly StringSetting _personalToken = new StringSetting("Personal token", string.Empty);
-        private static readonly TranslationString EmptyQueryResultMessage = new TranslationString("[Empty Jira Query Result]");
+        private static readonly TranslationString EmptyQueryResultMessage = new TranslationString("[Empty GitLab Query Result]");
         private static readonly TranslationString EmptyQueryResultCaption = new TranslationString("First Task Preview");
 
         private NetworkCredential _credential;
@@ -44,6 +46,7 @@ namespace GitExtensions.GitLabCommitHintPlugin
         private IGitModule _gitModule;
         private string _stringTemplate = DefaultFormat;
         private Session _currentSession;
+        private bool _connectError;
 
         public GitLabCommitHintPlugin() : base(true)
         {
@@ -183,6 +186,12 @@ namespace GitExtensions.GitLabCommitHintPlugin
                 return;
             }
 
+            if (_connectError)
+            {
+                e.GitUICommands.AddCommitTemplate("Error", () => "Unable connect to GitLab", Icon);
+                return;
+            }
+
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
                 if (_client == null)
@@ -304,27 +313,32 @@ namespace GitExtensions.GitLabCommitHintPlugin
 
             GitLabClient client = null;
 
-            var t = Task.Run(async () =>
+            if (_connectError)
             {
-                client = !string.IsNullOrWhiteSpace(token)
-                    ? new GitLabClient(url, token)
-                    : new GitLabClient(url);
+                return client;
+            }
 
-                if (string.IsNullOrWhiteSpace(token))
+            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            {
+                try
                 {
-                    await client.LoginAsync(credentials.UserName, credentials.Password);
-                }
+                    client = !string.IsNullOrWhiteSpace(token)
+                        ? new GitLabClient(url, token)
+                        : new GitLabClient(url);
 
-                _currentSession = await client.Users.GetCurrentSessionAsync();
+                    if (string.IsNullOrWhiteSpace(token))
+                    {
+                        await client.LoginAsync(credentials.UserName, credentials.Password);
+                    }
+
+                    _currentSession = await client.Users.GetCurrentSessionAsync();
+                }
+                catch (Exception)
+                {
+                    _connectError = true;
+                    MessageBox.Show($"Unable connect to GitLab server: {url}", "GitLab Commit Hint", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             });
-            try
-            {
-                t.Wait();
-            }
-            catch (Exception)
-            {
-                MessageBox.Show($"Unable connect to GitLab server: {url}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
 
             return client;
         }

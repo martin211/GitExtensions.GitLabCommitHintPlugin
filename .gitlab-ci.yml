@@ -37,13 +37,13 @@ pack:
     paths:
       - output/packages/
   only:
-    - main
+    - master
 
 deploy:
   stage: deploy
   script:
     - cd $build_path
-    - powershell -File $CI_PROJECT_DIR\build.ps1 Deploy
+    - powershell -File $CI_PROJECT_DIR\build.ps1 Deploy --NugetSource ${NUGET_SOURCE} --NugetApiKey ${NUGET_KEY}
   cache:
     key: ${CI_COMMIT_REF_SLUG}
     paths:
