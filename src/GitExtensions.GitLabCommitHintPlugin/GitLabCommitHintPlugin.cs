@@ -1,11 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GitExtensions.GitLabCommitHintPlugin.Properties;
+using GitExtensions.GitLabCommitHintPlugin.Settings;
 using GitExtUtils.GitUI;
 using GitLabApiClient;
 using GitLabApiClient.Models.Issues.Responses;
@@ -21,7 +24,7 @@ namespace GitExtensions.GitLabCommitHintPlugin
     [Export(typeof(IGitPlugin))]
     public class GitLabCommitHintPlugin : GitPluginBase, IGitPluginForRepository
     {
-        private const string DefaultFormat = "#{Id}: {Title}";
+        private const string DefaultFormat = "#{Iid}: {Title}";
 
         private static readonly TranslationString PreviewButtonText = new TranslationString("Preview");
 
@@ -31,7 +34,7 @@ namespace GitExtensions.GitLabCommitHintPlugin
         private readonly StringSetting _urlSettings = new StringSetting("GitLab URL", @"https://www.gitlab.com/");
         private readonly StringSetting _projectSettings = new StringSetting("Project Id", string.Empty);
         private readonly StringSetting _personalToken = new StringSetting("Personal token", string.Empty);
-        private static readonly TranslationString EmptyQueryResultMessage = new TranslationString("[Empty Jira Query Result]");
+        private static readonly TranslationString EmptyQueryResultMessage = new TranslationString("[Empty GitLab Query Result]");
         private static readonly TranslationString EmptyQueryResultCaption = new TranslationString("First Task Preview");
 
         private NetworkCredential _credential;
@@ -43,6 +46,7 @@ namespace GitExtensions.GitLabCommitHintPlugin
         private IGitModule _gitModule;
         private string _stringTemplate = DefaultFormat;
         private Session _currentSession;
+        private bool _connectError;
 
         public GitLabCommitHintPlugin() : base(true)
         {
@@ -89,7 +93,19 @@ namespace GitExtensions.GitLabCommitHintPlugin
             _personalToken.CustomControl = new TextBox();
             yield return _personalToken;
 
-            _projectSettings.CustomControl = new TextBox();
+            var projectTemplate = new TextBox();
+            var btn = new Button
+            {
+                Top = -4,
+                Text = "Select",
+                Anchor = AnchorStyles.Right | AnchorStyles.Bottom
+            };
+
+            btn.Left = projectTemplate.Width - btn.Width - DpiUtil.Scale(8);
+            btn.Size = DpiUtil.Scale(btn.Size);
+            btn.Click += BtnOnClick;
+            projectTemplate.Controls.Add(btn);
+            _projectSettings.CustomControl = projectTemplate;
             yield return _projectSettings;
 
             var txtTemplate = new TextBox
@@ -109,6 +125,15 @@ namespace GitExtensions.GitLabCommitHintPlugin
             txtTemplate.Controls.Add(_btnPreview);
             _stringTemplateSetting.CustomControl = txtTemplate;
             yield return _stringTemplateSetting;
+        }
+
+        private void BtnOnClick(object sender, EventArgs e)
+        {
+            var form = new ProjectChooser(_client);
+            if (form.ShowDialog() == DialogResult.OK)
+            {
+                _projectSettings.CustomControl.Text = form.ProjectName;
+            }
         }
 
         public override void Unregister(IGitUICommands gitUiCommands)
@@ -131,9 +156,14 @@ namespace GitExtensions.GitLabCommitHintPlugin
             _credential = _credentialsSettings.GetValueOrDefault(Settings);
             var token = _personalToken.ValueOrDefault(Settings);
 
-            if (string.IsNullOrWhiteSpace(url) ||
-                string.IsNullOrWhiteSpace(token) ||
-                string.IsNullOrWhiteSpace(_credential.Password) || string.IsNullOrWhiteSpace(_credential.UserName))
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                if (string.IsNullOrWhiteSpace(token) && (string.IsNullOrWhiteSpace(_credential.Password) || string.IsNullOrWhiteSpace(_credential.UserName)))
+                {
+                    return;
+                }
+            }
+            else
             {
                 return;
             }
@@ -156,8 +186,19 @@ namespace GitExtensions.GitLabCommitHintPlugin
                 return;
             }
 
+            if (_connectError)
+            {
+                e.GitUICommands.AddCommitTemplate("Error", () => "Unable connect to GitLab", Icon);
+                return;
+            }
+
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
+                if (_client == null)
+                {
+                    UpdateGitLabSettings();
+                }
+
                 TaskDTO[] currentMessages = await GetMessageToCommitAsync(_client, _stringTemplate);
 
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -243,6 +284,11 @@ namespace GitExtensions.GitLabCommitHintPlugin
 
                 if (projectId != string.Empty)
                 {
+                    if (!int.TryParse(projectId, out _))
+                    {
+                        projectId = projectId.Replace("/", "%2F");
+                    }
+
                     issues = await client.Issues.GetAllAsync(projectId, options: options => options.AssigneeId = _currentSession.Id);
                 }
                 else
@@ -250,9 +296,8 @@ namespace GitExtensions.GitLabCommitHintPlugin
                     issues = await client.Issues.GetAllAsync(options: options => options.AssigneeId = _currentSession.Id);
                 }
 
-                
                 return issues
-                     .Select(issue => new TaskDTO($"#{issue.Id}: {issue.Title}", StringTemplate.Format(stringTemplate, issue)))
+                     .Select(issue => new TaskDTO($"#{issue.Iid}: {issue.Title}", StringTemplate.Format(stringTemplate, issue)))
                      .ToArray();
             }
             catch (Exception ex)
@@ -268,20 +313,32 @@ namespace GitExtensions.GitLabCommitHintPlugin
 
             GitLabClient client = null;
 
-            var t = Task.Run(async () =>
+            if (_connectError)
             {
-                client = !string.IsNullOrWhiteSpace(token)
-                    ? new GitLabClient(url, token)
-                    : new GitLabClient(url);
+                return client;
+            }
 
-                if (string.IsNullOrWhiteSpace(token))
+            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            {
+                try
                 {
-                    await client.LoginAsync(credentials.UserName, credentials.Password);
-                }
+                    client = !string.IsNullOrWhiteSpace(token)
+                        ? new GitLabClient(url, token)
+                        : new GitLabClient(url);
 
-                _currentSession = await client.Users.GetCurrentSessionAsync();
+                    if (string.IsNullOrWhiteSpace(token))
+                    {
+                        await client.LoginAsync(credentials.UserName, credentials.Password);
+                    }
+
+                    _currentSession = await client.Users.GetCurrentSessionAsync();
+                }
+                catch (Exception)
+                {
+                    _connectError = true;
+                    MessageBox.Show($"Unable connect to GitLab server: {url}", "GitLab Commit Hint", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             });
-            t.Wait();
 
             return client;
         }

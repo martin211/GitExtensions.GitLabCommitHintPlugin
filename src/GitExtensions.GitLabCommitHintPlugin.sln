@@ -9,6 +9,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GitExtensions.GitLabCommitH
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "_build", "..\build\_build.csproj", "{85D0EDCF-4C8D-46DC-9683-E756C42FAF8D}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionItems", "{E8087F36-FE5F-4EE2-A8A1-E191D08011C9}"
+	ProjectSection(SolutionItems) = preProject
+		GitExtensions.GitLabCommitHintPlugin\Directory.Build.targets = GitExtensions.GitLabCommitHintPlugin\Directory.Build.targets
+		GitExtensions.GitLabCommitHintPlugin\GitExtensions.GitLabCommitHintPlugin.nuspec = GitExtensions.GitLabCommitHintPlugin\GitExtensions.GitLabCommitHintPlugin.nuspec
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
