@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.31702.278
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31717.71
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GitLabApiClient", "GitLabApiClient\GitLabApiClient.csproj", "{50B93773-F779-4F93-A295-86A15971BE26}"
 EndProject
@@ -11,9 +11,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionIt
 	ProjectSection(SolutionItems) = preProject
 		GitExtensions.GitLabCommitHintPlugin\Directory.Build.targets = GitExtensions.GitLabCommitHintPlugin\Directory.Build.targets
 		GitExtensions.GitLabCommitHintPlugin\GitExtensions.GitLabCommitHintPlugin.nuspec = GitExtensions.GitLabCommitHintPlugin\GitExtensions.GitLabCommitHintPlugin.nuspec
+		..\GitVersion.yml = ..\GitVersion.yml
 	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "gitextensions", "gitextensions", "{BBF157CE-20CF-4936-A127-549C47845566}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GitExtensions.GitLabCommitHintPlugin", "GitExtensions.GitLabCommitHintPlugin\GitExtensions.GitLabCommitHintPlugin.csproj", "{E261AA6D-5DD3-4BB8-A634-DD80999DD93D}"
 EndProject
