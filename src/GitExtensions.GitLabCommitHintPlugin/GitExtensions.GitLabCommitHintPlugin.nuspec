@@ -7,6 +7,9 @@
     <description>GitLab Commit Hint Plugin for GitExtensions</description>
     <projectUrl>https://github.com/martin211/GitExtensions.GitLabCommitHintPlugin</projectUrl>
     <tags>GitExtensions,GitLab,Commit</tags>
+    <dependencies>
+        <dependency id="GitExtensions.Extensibility" version="(0.1.0, 1.0.0)" />
+    </dependencies>
   </metadata>
   <files>
     <file src="$targetDir$$id$.dll" target="/lib" />

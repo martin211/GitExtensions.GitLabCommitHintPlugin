@@ -142,10 +142,31 @@ namespace GitExtensions.GitLabCommitHintPlugin
 
         private void BtnProjectSelect_Click(object sender, EventArgs e)
         {
-            var form = new ProjectChooser(_client);
-            if (form.ShowDialog() == DialogResult.OK)
+            if (_client == null)
             {
-                _projectSettings.CustomControl.Text = form.ProjectName;
+                ThreadHelper.JoinableTaskFactory.Run(async () =>
+                {
+                    _client = await GetClientAsync();
+
+                    if (_client != null)
+                    {
+                        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+                        var form = new ProjectChooser(_client);
+                        if (form.ShowDialog() == DialogResult.OK)
+                        {
+                            _projectSettings.CustomControl.Text = form.ProjectName;
+                        }
+                    }
+                });
+            }
+            else
+            {
+                var form = new ProjectChooser(_client);
+                if (form.ShowDialog() == DialogResult.OK)
+                {
+                    _projectSettings.CustomControl.Text = form.ProjectName;
+                }
             }
         }
 
