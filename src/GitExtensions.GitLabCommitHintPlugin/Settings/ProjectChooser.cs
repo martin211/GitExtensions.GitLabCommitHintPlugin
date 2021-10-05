@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using GitLabApiClient;
+using GitLabApiClient.Models.Projects.Requests;
 using GitLabApiClient.Models.Projects.Responses;
+using GitUI;
 
 namespace GitExtensions.GitLabCommitHintPlugin.Settings
 {
@@ -18,18 +19,18 @@ namespace GitExtensions.GitLabCommitHintPlugin.Settings
         {
             InitializeComponent();
 
-            IList<Project> projects = new List<Project>();
-
-            var task = Task.Run(async () =>
+            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
-                projects = await client.Projects.GetAsync();
+                var projects = await client.Projects.GetAsync(opt =>
+                {
+                    opt.IsMemberOf = true;
+                    opt.WithIssuesEnabled = true;
+                    opt.Owned = true;
+                });
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var rootTreeNode = LoadTreeView(treeViewTeamCityProjects, projects);
+                rootTreeNode.Expand();
             });
-
-            task.Wait();
-
-            var rootTreeNode = LoadTreeView(treeViewTeamCityProjects, projects);
-
-            rootTreeNode.Expand();
         }
 
         private void TeamCityBuildChooser_Load(object sender, EventArgs e)

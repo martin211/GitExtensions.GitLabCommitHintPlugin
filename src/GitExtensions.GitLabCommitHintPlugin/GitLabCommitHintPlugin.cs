@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
-using System.Diagnostics;
 using System.Linq;
-using System.Net;
-using System.Runtime.InteropServices;
+using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GitExtensions.GitLabCommitHintPlugin.Properties;
@@ -16,7 +14,6 @@ using GitLabApiClient.Models.Users.Responses;
 using NString;
 using GitUIPluginInterfaces;
 using GitUI;
-using GitUIPluginInterfaces.UserControls;
 using ResourceManager;
 
 namespace GitExtensions.GitLabCommitHintPlugin
@@ -26,34 +23,35 @@ namespace GitExtensions.GitLabCommitHintPlugin
     {
         private const string DefaultFormat = "#{Iid}: {Title}";
 
-        private static readonly TranslationString PreviewButtonText = new TranslationString("Preview");
+        private static readonly TranslationString PreviewButtonText = new("Preview");
 
-        private readonly GitLabCredentialsSetting _credentialsSettings;
-        private readonly BoolSetting _enabledSettings = new BoolSetting("GitLab hint plugin enabled", false);
-        private readonly StringSetting _stringTemplateSetting = new StringSetting("GitLab Message Template", "Message Template", DefaultFormat, true);
-        private readonly StringSetting _urlSettings = new StringSetting("GitLab URL", @"https://www.gitlab.com/");
-        private readonly StringSetting _projectSettings = new StringSetting("Project Id", string.Empty);
-        private readonly StringSetting _personalToken = new StringSetting("Personal token", string.Empty);
-        private static readonly TranslationString EmptyQueryResultMessage = new TranslationString("[Empty GitLab Query Result]");
-        private static readonly TranslationString EmptyQueryResultCaption = new TranslationString("First Task Preview");
+        private readonly BoolSetting _enabledSettings = new("GitLab hint plugin enabled", false);
+        private readonly StringSetting _stringTemplateSetting = new("GitLab Message Template", "Message Template", DefaultFormat, true);
+        private readonly StringSetting _urlSettings = new("GitLab URL", @"https://gitlab.com/");
+        private readonly StringSetting _projectSettings = new("Project Id", string.Empty);
+        private readonly StringSetting _personalToken = new("Personal token", string.Empty);
+        private static readonly TranslationString EmptyQueryResultMessage = new("[Empty GitLab Query Result]");
+        private static readonly TranslationString EmptyQueryResultCaption = new("First Task Preview");
+        private static readonly TranslationString FieldsLabel = new("GitLab fields");
+        private readonly string _issueFields = $"{{{string.Join("} {", typeof(Issue).GetProperties().Where(i => i.CanRead).Select(i => i.Name).OrderBy(i => i).ToArray())}}}";
 
-        private NetworkCredential _credential;
         private GitLabClient _client;
 
         private Button _btnPreview;
 
         private TaskDTO[] _currentMessages;
-        private IGitModule _gitModule;
         private string _stringTemplate = DefaultFormat;
         private Session _currentSession;
         private bool _connectError;
+
+        private bool IsEnabled => _enabledSettings.ValueOrDefault(Settings);
+        private string Url => _urlSettings.ValueOrDefault(Settings);
+        private string Token => _personalToken.ValueOrDefault(Settings);
 
         public GitLabCommitHintPlugin() : base(true)
         {
             SetNameAndDescription("GitLab Commit Hint");
             Translate();
-            _credentialsSettings = new GitLabCredentialsSetting("GitLabCredentials", "GitLab Credentials",
-                () => _gitModule?.WorkingDir);
 
             Icon = Resources.gitlab;
         }
@@ -72,12 +70,29 @@ namespace GitExtensions.GitLabCommitHintPlugin
         public override void Register(IGitUICommands gitUiCommands)
         {
             base.Register(gitUiCommands);
-            _gitModule = gitUiCommands.GitModule;
             gitUiCommands.PostSettings += gitUiCommands_PostSettings;
             gitUiCommands.PreCommit += gitUiCommands_PreCommit;
             gitUiCommands.PostCommit += gitUiCommands_PostRepositoryChanged;
             gitUiCommands.PostRepositoryChanged += gitUiCommands_PostRepositoryChanged;
-            UpdateGitLabSettings();
+            gitUiCommands.PostRegisterPlugin += gitUiCommands_PostRegisterPlugin;
+        }
+
+        private void gitUiCommands_PostRegisterPlugin(object sender, GitUIEventArgs e)
+        {
+            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            {
+                if (!IsEnabled || string.IsNullOrWhiteSpace(Url) || string.IsNullOrWhiteSpace(Token))
+                {
+                    return;
+                }
+
+                _client = await GetClientAsync();
+                if (_client == null)
+                {
+                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                    MessageBox.Show($"Unable connect to {_urlSettings.ValueOrDefault(Settings)}");
+                }
+            });
         }
 
         public override IEnumerable<ISetting> GetSettings()
@@ -86,9 +101,6 @@ namespace GitExtensions.GitLabCommitHintPlugin
 
             _urlSettings.CustomControl = new TextBox();
             yield return _urlSettings;
-
-            _credentialsSettings.CustomControl = new CredentialsControl();
-            yield return _credentialsSettings;
 
             _personalToken.CustomControl = new TextBox();
             yield return _personalToken;
@@ -103,10 +115,11 @@ namespace GitExtensions.GitLabCommitHintPlugin
 
             btn.Left = projectTemplate.Width - btn.Width - DpiUtil.Scale(8);
             btn.Size = DpiUtil.Scale(btn.Size);
-            btn.Click += BtnOnClick;
+            btn.Click += BtnProjectSelect_Click;
             projectTemplate.Controls.Add(btn);
             _projectSettings.CustomControl = projectTemplate;
             yield return _projectSettings;
+            yield return new PseudoSetting(_issueFields, FieldsLabel.Text, DpiUtil.Scale(55));
 
             var txtTemplate = new TextBox
             {
@@ -127,7 +140,7 @@ namespace GitExtensions.GitLabCommitHintPlugin
             yield return _stringTemplateSetting;
         }
 
-        private void BtnOnClick(object sender, EventArgs e)
+        private void BtnProjectSelect_Click(object sender, EventArgs e)
         {
             var form = new ProjectChooser(_client);
             if (form.ShowDialog() == DialogResult.OK)
@@ -143,33 +156,28 @@ namespace GitExtensions.GitLabCommitHintPlugin
             gitUiCommands.PostCommit -= gitUiCommands_PostRepositoryChanged;
             gitUiCommands.PostSettings -= gitUiCommands_PostSettings;
             gitUiCommands.PostRepositoryChanged -= gitUiCommands_PostRepositoryChanged;
+            gitUiCommands.PostRegisterPlugin -= gitUiCommands_PostRegisterPlugin;
         }
 
-        private void UpdateGitLabSettings()
+        private async Task UpdateGitLabSettingsAsync()
         {
-            if (!_enabledSettings.ValueOrDefault(Settings))
+            if (!IsEnabled || string.IsNullOrWhiteSpace(Url) || string.IsNullOrWhiteSpace(Token))
             {
+                _projectSettings.CustomControl.Enabled = false;
+
                 return;
             }
 
-            string url = _urlSettings.ValueOrDefault(Settings);
-            _credential = _credentialsSettings.GetValueOrDefault(Settings);
-            var token = _personalToken.ValueOrDefault(Settings);
+            _projectSettings.CustomControl.Enabled = true;
 
-            if (!string.IsNullOrWhiteSpace(url))
-            {
-                if (string.IsNullOrWhiteSpace(token) && (string.IsNullOrWhiteSpace(_credential.Password) || string.IsNullOrWhiteSpace(_credential.UserName)))
-                {
-                    return;
-                }
-            }
-            else
-            {
-                return;
-            }
-
-            _client = GetClient(_credential);
             _stringTemplate = _stringTemplateSetting.ValueOrDefault(Settings);
+            _client = await GetClientAsync();
+
+            if (_client == null)
+            {
+                _connectError = true;
+            }
+
             if (_btnPreview == null)
             {
                 return;
@@ -196,7 +204,7 @@ namespace GitExtensions.GitLabCommitHintPlugin
             {
                 if (_client == null)
                 {
-                    UpdateGitLabSettings();
+                    UpdateGitLabSettingsAsync();
                 }
 
                 TaskDTO[] currentMessages = await GetMessageToCommitAsync(_client, _stringTemplate);
@@ -213,7 +221,11 @@ namespace GitExtensions.GitLabCommitHintPlugin
 
         private void gitUiCommands_PostSettings(object sender, GitUIPostActionEventArgs e)
         {
-            UpdateGitLabSettings();
+            ThreadHelper.JoinableTaskFactory.Run(async () =>
+            {
+                await UpdateGitLabSettingsAsync();
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            });
         }
 
         private void gitUiCommands_PostRepositoryChanged(object sender, GitUIEventArgs e)
@@ -240,14 +252,17 @@ namespace GitExtensions.GitLabCommitHintPlugin
         {
             try
             {
+                var url = _urlSettings.ValueOrDefault(Settings);
+                var token = _personalToken.ValueOrDefault(Settings);
+
                 _btnPreview.Enabled = false;
-                NetworkCredential credentials = _credentialsSettings.GetValueOrDefault(Settings);
-                var client = GetClient(credentials);
                 var template = _stringTemplateSetting.CustomControl.Text;
 
                 ThreadHelper.JoinableTaskFactory.RunAsync(
                     async () =>
                     {
+                        GitLabClient client = await GetClientAsync();
+
                         var message = await GetMessageToCommitAsync(client, template);
                         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                         var preview = message.FirstOrDefault();
@@ -284,11 +299,6 @@ namespace GitExtensions.GitLabCommitHintPlugin
 
                 if (projectId != string.Empty)
                 {
-                    if (!int.TryParse(projectId, out _))
-                    {
-                        projectId = projectId.Replace("/", "%2F");
-                    }
-
                     issues = await client.Issues.GetAllAsync(projectId, options: options => options.AssigneeId = _currentSession.Id);
                 }
                 else
@@ -306,39 +316,25 @@ namespace GitExtensions.GitLabCommitHintPlugin
             }
         }
 
-        private GitLabClient GetClient(NetworkCredential credentials)
+        private async Task<GitLabClient> GetClientAsync()
         {
-            var token = _personalToken.ValueOrDefault(Settings);
             string url = _urlSettings.ValueOrDefault(Settings);
+            var token = _personalToken.ValueOrDefault(Settings);
 
-            GitLabClient client = null;
-
-            if (_connectError)
+            var client = new GitLabClient(url, token, new HttpClientHandler
             {
-                return client;
-            }
-
-            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
-            {
-                try
-                {
-                    client = !string.IsNullOrWhiteSpace(token)
-                        ? new GitLabClient(url, token)
-                        : new GitLabClient(url);
-
-                    if (string.IsNullOrWhiteSpace(token))
-                    {
-                        await client.LoginAsync(credentials.UserName, credentials.Password);
-                    }
-
-                    _currentSession = await client.Users.GetCurrentSessionAsync();
-                }
-                catch (Exception)
-                {
-                    _connectError = true;
-                    MessageBox.Show($"Unable connect to GitLab server: {url}", "GitLab Commit Hint", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
+                AllowAutoRedirect = false,
             });
+
+            try
+            {
+                _currentSession = await client.Users.GetCurrentSessionAsync();
+            }
+            catch (Exception)
+            {
+                _connectError = true;
+                return null;
+            }
 
             return client;
         }

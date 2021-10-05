@@ -54,7 +54,7 @@
             this.buttonOK.Location = new System.Drawing.Point(274, 346);
             this.buttonOK.Margin = new System.Windows.Forms.Padding(2);
             this.buttonOK.Name = "buttonOK";
-            this.buttonOK.Size = new System.Drawing.Size(56, 19);
+            this.buttonOK.Size = new System.Drawing.Size(63, 22);
             this.buttonOK.TabIndex = 15;
             this.buttonOK.Text = "OK";
             this.buttonOK.UseVisualStyleBackColor = true;
@@ -67,13 +67,13 @@
             this.buttonCancel.Location = new System.Drawing.Point(121, 346);
             this.buttonCancel.Margin = new System.Windows.Forms.Padding(2);
             this.buttonCancel.Name = "buttonCancel";
-            this.buttonCancel.Size = new System.Drawing.Size(56, 19);
+            this.buttonCancel.Size = new System.Drawing.Size(62, 22);
             this.buttonCancel.TabIndex = 15;
             this.buttonCancel.Text = "Cancel";
             this.buttonCancel.UseVisualStyleBackColor = true;
             this.buttonCancel.Click += new System.EventHandler(this.buttonCancel_Click);
             // 
-            // TeamCityBuildChooser
+            // ProjectChooser
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;

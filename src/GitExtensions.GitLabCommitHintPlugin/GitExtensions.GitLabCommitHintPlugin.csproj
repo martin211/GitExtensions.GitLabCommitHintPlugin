@@ -66,5 +66,6 @@
     <PackageProjectUrl>https://github.com/martin211/GitExtensions.GitLabCommitHintPlugin</PackageProjectUrl>
     <PackageTags>GitExtensions</PackageTags>
     <AssemblyName>GitExtensions.GitLabCommitHintPlugin</AssemblyName>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
 </Project>
