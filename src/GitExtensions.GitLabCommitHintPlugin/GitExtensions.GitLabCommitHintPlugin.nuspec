@@ -15,5 +15,6 @@
     <file src="$targetDir$$id$.dll" target="/lib" />
     <file src="$targetDir$GitLabApiClient.dll" target="/lib" />
     <file src="$targetDir$Newtonsoft.Json.dll" target="/lib" />
+	<file src="$targetDir$NString.dll" target="/lib" />
   </files>
 </package>
