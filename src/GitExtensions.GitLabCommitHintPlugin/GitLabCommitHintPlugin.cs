@@ -48,6 +48,7 @@ namespace GitExtensions.GitLabCommitHintPlugin
         private bool _connectionError;
         private string _gitLabUrl;
         private string _gitLabToken;
+        private bool _loading;
 
         private bool IsEnabled => _enabledSettings.ValueOrDefault(Settings);
         private string Url => _urlSettings.ValueOrDefault(Settings);
@@ -63,13 +64,8 @@ namespace GitExtensions.GitLabCommitHintPlugin
 
         public override bool Execute(GitUIEventArgs args)
         {
-            if (!_enabledSettings.ValueOrDefault(Settings))
-            {
-                args.GitUICommands.StartSettingsDialog(this);
-                return false;
-            }
-
-            return false;
+            args.GitUICommands.StartSettingsDialog(this);
+            return true;
         }
 
         public override void Register(IGitUICommands gitUiCommands)
@@ -94,18 +90,16 @@ namespace GitExtensions.GitLabCommitHintPlugin
 
         private void gitUiCommands_PostRegisterPlugin(object sender, GitUIEventArgs e)
         {
+            if (!IsEnabled || string.IsNullOrWhiteSpace(Url) || string.IsNullOrWhiteSpace(Token) || _loading)
+            {
+                return;
+            }
+
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
-                if (!IsEnabled || string.IsNullOrWhiteSpace(Url) || string.IsNullOrWhiteSpace(Token))
-                {
-                    return;
-                }
-
+                _loading = true;
                 _client = await GetClientAsync();
-                if (_client == null)
-                {
-                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                }
+               await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             });
         }
 
@@ -182,7 +176,6 @@ namespace GitExtensions.GitLabCommitHintPlugin
         {
             _btnPreview.Enabled = false;
             _btnSelectProject.Enabled = false;
-            _btnTestConnection.Enabled = false;
 
             if (string.IsNullOrEmpty(_gitLabUrl))
             {
@@ -196,7 +189,33 @@ namespace GitExtensions.GitLabCommitHintPlugin
                 return;
             }
 
-            ThreadHelper.JoinableTaskFactory.Run(async () =>
+            _btnTestConnection.Enabled = false;
+
+            _btnTestConnection.Text = "Connecting";
+
+            var timer = new Timer();
+            timer.Interval = 1000;
+            int i = 0;
+            string dot = ".";
+            timer.Tick += (_, _) =>
+            {
+                if (i <= 5)
+                {
+                    dot += ".";
+                    i++;
+                }
+                else
+                {
+                    dot = ".";
+                    i = 0;
+                }
+
+                _btnTestConnection.Text = $"Connecting {dot}";
+            };
+
+            timer.Start();
+
+            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
                 var client = new GitLabClient(_gitLabUrl, _gitLabToken, new HttpClientHandler
                 {
@@ -221,10 +240,16 @@ namespace GitExtensions.GitLabCommitHintPlugin
                     connected = false;
                 }
 
+                timer.Stop();
+
                 if (!connected)
                     MessageBox.Show("Unable connect to GitLab server.", "GitLab hint plugin", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 else
                     MessageBox.Show("Success!", "GitLab hint plugin", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                _btnTestConnection.Text = "Test connection";
+
+                _connectionError = !connected;
 
                 _btnPreview.Enabled = _btnSelectProject.Enabled = connected;
                 _btnTestConnection.Enabled = true;
@@ -277,13 +302,21 @@ namespace GitExtensions.GitLabCommitHintPlugin
             }
 
             _projectSettings.CustomControl.Enabled = true;
-
             _stringTemplate = _stringTemplateSetting.ValueOrDefault(Settings);
-            _client = await GetClientAsync();
 
             if (_client == null)
             {
-                _connectionError = true;
+                _connectionError = false;
+
+                ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+                {
+                    _client = await GetClientAsync();
+
+                    if (_client == null)
+                    {
+                        _connectionError = true;
+                    }
+                });
             }
 
             if (_btnPreview == null)
