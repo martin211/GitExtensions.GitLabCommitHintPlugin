@@ -4,7 +4,7 @@
         <GitExtensionsDownloadPath Condition="$(GitExtensionsDownloadPath) == ''">..\..\gitextensions.shared</GitExtensionsDownloadPath> <!-- path is relative to $(ProjectDir) -->
         <GitExtensionsReferenceVersion Condition="$(GitExtensionsReferenceVersion) == ''">latest</GitExtensionsReferenceVersion> <!-- 'latest' or 'v3.1' (= tag from GitHub releases) or 'v3.1.0.5877' (= build number from AppVeyor)-->
         <GitExtensionsReferenceSource Condition="$(GitExtensionsReferenceSource) == ''">GitHub</GitExtensionsReferenceSource> <!-- 'GitHub' or 'AppYevor' -->
-        <GitExtensionsPath Condition="$(GitExtensionsPath) == ''">$([System.IO.Path]::Combine('$(ProjectDir)', '$(GitExtensionsDownloadPath)', 'GitExtensions'))</GitExtensionsPath> <!-- for local builds (no download) -->
+        <GitExtensionsPath Condition="$(GitExtensionsPath) == ''">$([System.IO.Path]::Combine('$(ProjectDir)', '$(GitExtensionsDownloadPath)'))</GitExtensionsPath> <!-- for local builds (no download) -->
     </PropertyGroup>
 
     <!-- The following properties are derived from the above ones. All of them necessitate absolute paths. -->
@@ -19,12 +19,13 @@
     <!-- The postbuild event is available in VS projects referencing "GitExtensions.Extensibility". -->
     <!-- It copies your locally build binaries to $(GitExtensionsPluginsPath)/$(ProjectName) for testing and debugging.-->
     <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-        <Message Text="Executing postbuild event provided by GitExtensions.Extensibility" />
+        <Message Text="Executing postbuild event provided by GitExtensions.Extensibility" Importance="high"/>
+        <Message Text="GitExtensions plugin folder: $(GitExtensionsPluginsPath)" Importance="high"/>
         <MakeDir Directories="$(GitExtensionsPluginsPath)" />
         <Copy SourceFiles="$(TargetPath)" DestinationFolder="$([System.IO.Path]::Combine('$(GitExtensionsPluginsPath)', '$(ProjectName)'))" />
         <Copy Condition="Exists($([System.IO.Path]::Combine('$(TargetDir)', 'GitLabApiClient.dll')))" SourceFiles="$([System.IO.Path]::Combine('$(TargetDir)', 'GitLabApiClient.dll'))" DestinationFolder="$([System.IO.Path]::Combine('$(GitExtensionsPluginsPath)', '$(ProjectName)'))"/>
         <Copy Condition="Exists($([System.IO.Path]::Combine('$(TargetDir)', 'Newtonsoft.Json.dll')))" SourceFiles="$([System.IO.Path]::Combine('$(TargetDir)', 'Newtonsoft.Json.dll'))" DestinationFolder="$([System.IO.Path]::Combine('$(GitExtensionsPluginsPath)', '$(ProjectName)'))"/>
-        <Message Text="Completed postbuild event provided by GitExtensions.Extensibility" />
+        <Message Text="Completed postbuild event provided by GitExtensions.Extensibility" Importance="high"/>
     </Target>
 
     <!-- The prebuild event is available in VS projects referencing "GitExtensions.Extensibility". -->

@@ -1,7 +1,7 @@
 next-version: 0.1.0
 assembly-versioning-scheme: MajorMinorPatch
 assembly-file-versioning-scheme: MajorMinorPatchTag
-mode: Mainline
+mode: ContinuousDelivery
 branches:
   master:
     regex: master
