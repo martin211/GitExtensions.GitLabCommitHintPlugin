@@ -2,16 +2,15 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
-using GitLabApiClient;
-using GitLabApiClient.Models.Projects.Requests;
-using GitLabApiClient.Models.Projects.Responses;
 using GitUI;
+using NGitLab;
+using NGitLab.Models;
 
 namespace GitExtensions.GitLabCommitHintPlugin.Settings
 {
     public partial class ProjectChooser : Form
     {
-        private TreeNode _previouslySelectedProject;
+        //private TreeNode _previouslySelectedProject;
         public string ProjectName { get; private set; }
         public string BuildIdFilter { get; private set; }
 
@@ -19,38 +18,46 @@ namespace GitExtensions.GitLabCommitHintPlugin.Settings
         {
             InitializeComponent();
 
-            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            ThreadHelper.FileAndForget(async () =>
             {
-                var projects = await client.Projects.GetAsync(opt =>
-                {
-                    opt.IsMemberOf = true;
-                    opt.WithIssuesEnabled = true;
-                    opt.Owned = true;
-                });
+                // var projects = await client.Projects.GetAsync(opt =>
+                // {
+                //     opt.IsMemberOf = true;
+                //     opt.WithIssuesEnabled = true;
+                //     opt.Owned = true;
+                // });
+                var projects = client.Projects.GetAsync(new ProjectQuery());
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                var rootTreeNode = LoadTreeView(treeViewTeamCityProjects, projects);
+
+                var gitLabProjects = new List<Project>();
+                foreach (var p in projects)
+                {
+                    gitLabProjects.Add(p);
+                }
+                
+                var rootTreeNode = LoadTreeView(treeViewTeamCityProjects, gitLabProjects);
                 rootTreeNode.Expand();
             });
         }
 
         private void TeamCityBuildChooser_Load(object sender, EventArgs e)
         {
-            ReselectPreviouslySelectedBuild();
+            //ReselectPreviouslySelectedBuild();
         }
 
-        private void ReselectPreviouslySelectedBuild()
-        {
-            if (_previouslySelectedProject == null)
-            {
-                return;
-            }
+        // private void ReselectPreviouslySelectedBuild()
+        // {
+        //     if (_previouslySelectedProject == null)
+        //     {
+        //         return;
+        //     }
+        //
+        //     _previouslySelectedProject.Expand();
+        //     treeViewTeamCityProjects.SelectedNode = _previouslySelectedProject.Nodes.Find(BuildIdFilter, false).FirstOrDefault()
+        //         ?? _previouslySelectedProject;
+        // }
 
-            _previouslySelectedProject.Expand();
-            treeViewTeamCityProjects.SelectedNode = _previouslySelectedProject.Nodes.Find(BuildIdFilter, false).FirstOrDefault()
-                ?? _previouslySelectedProject;
-        }
-
-        private TreeNode LoadTreeView(TreeView treeView, IList<Project> rootProject)
+        private TreeNode LoadTreeView(TreeView treeView, IEnumerable<Project> rootProject)
         {
             treeView.Nodes.Clear();
             var rootNode = ConvertProjectInTreeNode(rootProject);
@@ -58,7 +65,7 @@ namespace GitExtensions.GitLabCommitHintPlugin.Settings
             return rootNode;
         }
 
-        private TreeNode ConvertProjectInTreeNode(IList<Project> projects)
+        private TreeNode ConvertProjectInTreeNode(IEnumerable<Project> projects)
         {
             var p = projects.Select(c => new
             {

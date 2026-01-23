@@ -1,39 +1,40 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net6.0-windows</TargetFramework>
+    <LangVersion>14.0</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <SuppressNETCoreSdkPreviewMessage>false</SuppressNETCoreSdkPreviewMessage>
+    <TargetFramework>net9.0-windows</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
-	<UseWindowsForms>true</UseWindowsForms>
-	<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <UseWindowsForms>true</UseWindowsForms>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="GitExtensions.GitLabCommitHintPlugin.nuspec" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="GitLabApiClient" Version="1.8.0" />
-    <PackageReference Include="Microsoft.VisualStudio.Threading" Version="17.4.27" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="7.0.0" />
-    <PackageReference Include="System.ComponentModel.Composition" Version="6.0.0" />
+    <PackageReference Include="GitExtensions.Extensibility" Version="0.4.0.111" />
+    <PackageReference Include="Microsoft.VisualStudio.Threading" Version="17.13.61" />
+    <PackageReference Include="NString" Version="2.1.1" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="GitCommands">
       <HintPath>..\..\gitextensions.shared\GitCommands.dll</HintPath>
     </Reference>
+    <Reference Include="GitExtensions.Extensibility">
+      <HintPath>..\..\gitextensions.shared\GitExtensions.Extensibility.dll</HintPath>
+    </Reference>
     <Reference Include="GitExtUtils">
       <HintPath>..\..\gitextensions.shared\GitExtUtils.dll</HintPath>
-    </Reference>
-    <Reference Include="GitUI">
-      <HintPath>..\..\gitextensions.shared\GitUI.dll</HintPath>
     </Reference>
     <Reference Include="GitUIPluginInterfaces">
       <HintPath>..\..\gitextensions.shared\GitUIPluginInterfaces.dll</HintPath>
     </Reference>
-    <Reference Include="NString">
-      <HintPath>..\..\gitextensions.shared\Plugins\NString.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="ResourceManager">
       <HintPath>..\..\gitextensions.shared\ResourceManager.dll</HintPath>
+    </Reference>
+    <Reference Include="System.ComponentModel.Composition">
+      <HintPath>..\..\gitextensions.shared\System.ComponentModel.Composition.dll</HintPath>
     </Reference>
   </ItemGroup>
   <!-- Reference to GitExtensions dlls. -->
@@ -49,6 +50,9 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\NGitLab\NGitLab\NGitLab.csproj" />
   </ItemGroup>
   <!-- Pack as .nupkg with dependency on GitExtensions.Extensibility -->
   <PropertyGroup>

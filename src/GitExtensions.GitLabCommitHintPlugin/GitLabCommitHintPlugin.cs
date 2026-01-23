@@ -1,32 +1,37 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GitCommands;
+using GitExtensions.Extensibility.Git;
 using GitExtensions.GitLabCommitHintPlugin.Properties;
 using GitExtensions.GitLabCommitHintPlugin.Settings;
+using GitExtensions.Extensibility.Plugins;
+using GitExtensions.Extensibility.Settings;
 using GitExtUtils.GitUI;
-using GitLabApiClient;
-using GitLabApiClient.Models.Issues.Responses;
-using GitLabApiClient.Models.Users.Responses;
-using NString;
-using GitUIPluginInterfaces;
 using GitUI;
+using GitUIPluginInterfaces;
+using NGitLab;
+using NGitLab.Models;
+using NString;
 using ResourceManager;
 
 namespace GitExtensions.GitLabCommitHintPlugin
 {
     [Export(typeof(IGitPlugin))]
+    [Export(typeof(IGitPluginForCommit))]
+    [SuppressMessage("Usage", "VSTHRD110:Observe result of async calls")]
     public class GitLabCommitHintPlugin : GitPluginBase, IGitPluginForRepository
     {
-        private const string DefaultFormat = "#{Iid}: {Title}";
-
+        private const string DefaultFormat = "#{IssueId}: {Title}";
+        
         private static readonly TranslationString PreviewButtonText = new("Preview");
-
+        
         private readonly BoolSetting _enabledSettings = new("GitLab hint plugin enabled", false);
-        private readonly StringSetting _stringTemplateSetting = new("GitLab Message Template", "Message Template", DefaultFormat, true);
+        private readonly StringSetting _stringTemplateSetting = new("Commit message template", "Message Template", DefaultFormat, true);
         private readonly StringSetting _urlSettings = new("GitLab URL", @"https://gitlab.com/");
         private readonly StringSetting _projectSettings = new("Project Id", string.Empty);
         private readonly StringSetting _personalToken = new("Personal token", string.Empty);
@@ -35,30 +40,32 @@ namespace GitExtensions.GitLabCommitHintPlugin
         private static readonly TranslationString FieldsLabel = new("GitLab fields");
         private static readonly TranslationString WrongSettings = new("Wrong GitLab settings");
         private readonly string _issueFields = $"{{{string.Join("} {", typeof(Issue).GetProperties().Where(i => i.CanRead).Select(i => i.Name).OrderBy(i => i).ToArray())}}}";
-
+        
         private GitLabClient _client;
-
+        
         private Button _btnPreview;
         private Button _btnTestConnection;
         private Button _btnSelectProject;
-
+        
         private TaskDTO[] _currentMessages;
         private string _stringTemplate = DefaultFormat;
         private Session _currentSession;
         private bool _connectionError;
         private string _gitLabUrl;
         private string _gitLabToken;
-        private bool _loading;
+        private Project _gitLabProject;
 
+        private IEnumerable<Issue> _issuesCache;
+        
         private bool IsEnabled => _enabledSettings.ValueOrDefault(Settings);
         private string Url => _urlSettings.ValueOrDefault(Settings);
         private string Token => _personalToken.ValueOrDefault(Settings);
 
         public GitLabCommitHintPlugin() : base(true)
         {
-            SetNameAndDescription("GitLab Commit Hint");
-            Translate();
-
+            Id = new Guid("340190F7-5C94-4904-B0DA-B6F4374E6D9E");
+            SetNameAndDescription("Gitlab Commit Hint Plugin");
+            Translate(AppSettings.CurrentTranslation);
             Icon = Resources.gitlab;
         }
 
@@ -76,6 +83,7 @@ namespace GitExtensions.GitLabCommitHintPlugin
             gitUiCommands.PostCommit += gitUiCommands_PostRepositoryChanged;
             gitUiCommands.PostRepositoryChanged += gitUiCommands_PostRepositoryChanged;
             gitUiCommands.PostRegisterPlugin += gitUiCommands_PostRegisterPlugin;
+            UpdateGitLabSettings();
         }
 
         public override void Unregister(IGitUICommands gitUiCommands)
@@ -85,22 +93,25 @@ namespace GitExtensions.GitLabCommitHintPlugin
             gitUiCommands.PostCommit -= gitUiCommands_PostRepositoryChanged;
             gitUiCommands.PostSettings -= gitUiCommands_PostSettings;
             gitUiCommands.PostRepositoryChanged -= gitUiCommands_PostRepositoryChanged;
-            gitUiCommands.PostRegisterPlugin -= gitUiCommands_PostRegisterPlugin;
+            //gitUiCommands.PostRegisterPlugin -= gitUiCommands_PostRegisterPlugin;
         }
 
         private void gitUiCommands_PostRegisterPlugin(object sender, GitUIEventArgs e)
         {
-            if (!IsEnabled || string.IsNullOrWhiteSpace(Url) || string.IsNullOrWhiteSpace(Token) || _loading)
+            if ((!IsEnabled || string.IsNullOrWhiteSpace(Url) || string.IsNullOrWhiteSpace(Token)) && _client is not null)
             {
                 return;
             }
-
-            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            
+            var project = _projectSettings.ValueOrDefault(Settings);
+            if (!string.IsNullOrEmpty(project))
             {
-                _loading = true;
-                _client = await GetClientAsync();
-               await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            });
+                ThreadHelper.FileAndForget(async () =>
+                {
+                    _gitLabProject = await _client.Projects.GetByNamespacedPathAsync(project);
+                    _issuesCache = LoadIssues();
+                });
+            }
         }
 
         public override IEnumerable<ISetting> GetSettings()
@@ -126,8 +137,7 @@ namespace GitExtensions.GitLabCommitHintPlugin
             {
                 Top = -4,
                 Text = "Select",
-                Anchor = AnchorStyles.Right | AnchorStyles.Bottom,
-                Enabled = _client != null
+                Anchor = AnchorStyles.Right | AnchorStyles.Bottom
             };
 
             _btnSelectProject.Left = projectTemplate.Width - _btnSelectProject.Width - DpiUtil.Scale(8);
@@ -137,7 +147,7 @@ namespace GitExtensions.GitLabCommitHintPlugin
 
             _projectSettings.CustomControl = projectTemplate;
             yield return _projectSettings;
-            yield return new PseudoSetting(_issueFields, FieldsLabel.Text, DpiUtil.Scale(55));
+            yield return new PseudoSetting(_issueFields, FieldsLabel.Text, DpiUtil.Scale(100));
 
             var txtTemplate = new TextBox
             {
@@ -176,6 +186,7 @@ namespace GitExtensions.GitLabCommitHintPlugin
         {
             _btnPreview.Enabled = false;
             _btnSelectProject.Enabled = false;
+            _btnTestConnection.Enabled = false;
 
             if (string.IsNullOrEmpty(_gitLabUrl))
             {
@@ -189,58 +200,27 @@ namespace GitExtensions.GitLabCommitHintPlugin
                 return;
             }
 
-            _btnTestConnection.Enabled = false;
-
             _btnTestConnection.Text = "Connecting";
 
-            var timer = new Timer();
-            timer.Interval = 1000;
-            int i = 0;
-            string dot = ".";
-            timer.Tick += (_, _) =>
-            {
-                if (i <= 5)
-                {
-                    dot += ".";
-                    i++;
-                }
-                else
-                {
-                    dot = ".";
-                    i = 0;
-                }
-
-                _btnTestConnection.Text = $"Connecting {dot}";
-            };
-
-            timer.Start();
+            var connected = false;
 
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
-                var client = new GitLabClient(_gitLabUrl, _gitLabToken, new HttpClientHandler
-                {
-                    AllowAutoRedirect = false,
-                });
-
-                bool connected = false;
+                _client = new GitLabClient(_gitLabUrl, _gitLabToken);
 
                 try
                 {
-                    var session = await client.Users.GetCurrentSessionAsync();
+                    var session = await _client.Users.GetCurrentUserAsync();
                     connected = session != null;
 
-                    ThreadHelper.JoinableTaskFactory.Run(async () =>
-                    {
-                        await UpdateGitLabSettingsAsync();
-                        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                    });
+                    if (connected)
+                        UpdateGitLabSettings();
+                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 }
                 catch (Exception)
                 {
                     connected = false;
                 }
-
-                timer.Stop();
 
                 if (!connected)
                     MessageBox.Show("Unable connect to GitLab server.", "GitLab hint plugin", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -248,10 +228,10 @@ namespace GitExtensions.GitLabCommitHintPlugin
                     MessageBox.Show("Success!", "GitLab hint plugin", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 _btnTestConnection.Text = "Test connection";
-
                 _connectionError = !connected;
-
-                _btnPreview.Enabled = _btnSelectProject.Enabled = connected;
+                
+                _btnPreview.Enabled = connected;
+                _btnSelectProject.Enabled = connected;
                 _btnTestConnection.Enabled = true;
             });
         }
@@ -292,23 +272,20 @@ namespace GitExtensions.GitLabCommitHintPlugin
             }
         }
 
-        private async Task UpdateGitLabSettingsAsync()
+        private void UpdateGitLabSettings()
         {
-            if (!IsEnabled || string.IsNullOrWhiteSpace(Url) || string.IsNullOrWhiteSpace(Token))
+            if (!_enabledSettings.ValueOrDefault(Settings))
             {
-                _projectSettings.CustomControl.Enabled = false;
-
                 return;
             }
 
-            _projectSettings.CustomControl.Enabled = true;
             _stringTemplate = _stringTemplateSetting.ValueOrDefault(Settings);
 
             if (_client == null)
             {
                 _connectionError = false;
 
-                ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+                ThreadHelper.FileAndForget(async () =>
                 {
                     _client = await GetClientAsync();
 
@@ -318,14 +295,6 @@ namespace GitExtensions.GitLabCommitHintPlugin
                     }
                 });
             }
-
-            if (_btnPreview == null)
-            {
-                return;
-            }
-
-            _btnPreview.Click -= btnPreviewClick;
-            _btnPreview = null;
         }
 
         private void gitUiCommands_PreCommit(object sender, GitUIEventArgs e)
@@ -345,10 +314,10 @@ namespace GitExtensions.GitLabCommitHintPlugin
             {
                 if (_client == null)
                 {
-                    UpdateGitLabSettingsAsync();
+                    UpdateGitLabSettings();
                 }
 
-                TaskDTO[] currentMessages = await GetMessageToCommitAsync(_client, _stringTemplate);
+                TaskDTO[] currentMessages = GetMessageToCommit(_client, _stringTemplate);
 
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
@@ -364,13 +333,18 @@ namespace GitExtensions.GitLabCommitHintPlugin
         {
             ThreadHelper.JoinableTaskFactory.Run(async () =>
             {
-                await UpdateGitLabSettingsAsync();
+                UpdateGitLabSettings();
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             });
         }
 
-        private void gitUiCommands_PostRepositoryChanged(object sender, GitUIEventArgs e)
+        private void gitUiCommands_PostRepositoryChanged(object sender, GitUIEventArgs gitUiEventArgs)
         {
+            ThreadHelper.FileAndForget(() =>
+            {
+                _issuesCache = LoadIssues();
+            });
+            
             if (!_enabledSettings.ValueOrDefault(Settings))
             {
                 return;
@@ -383,7 +357,7 @@ namespace GitExtensions.GitLabCommitHintPlugin
 
             foreach (TaskDTO message in _currentMessages)
             {
-                e.GitUICommands.RemoveCommitTemplate(message.Title);
+                gitUiEventArgs.GitUICommands.RemoveCommitTemplate(message.Title);
             }
 
             _currentMessages = null;
@@ -401,7 +375,7 @@ namespace GitExtensions.GitLabCommitHintPlugin
                     {
                         GitLabClient client = await GetClientAsync();
 
-                        var message = await GetMessageToCommitAsync(client, template);
+                        var message = GetMessageToCommit(client, template);
                         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                         var preview = message.FirstOrDefault();
 
@@ -422,7 +396,7 @@ namespace GitExtensions.GitLabCommitHintPlugin
             }
         }
 
-        private async Task<TaskDTO[]> GetMessageToCommitAsync(GitLabClient client, string stringTemplate)
+        private TaskDTO[] GetMessageToCommit(GitLabClient client, string stringTemplate)
         {
             if (client == null)
             {
@@ -431,21 +405,9 @@ namespace GitExtensions.GitLabCommitHintPlugin
 
             try
             {
-                IList<Issue> issues = new List<Issue>();
-
-                var projectId = _projectSettings.ValueOrDefault(Settings);
-
-                if (projectId != string.Empty)
-                {
-                    issues = await client.Issues.GetAllAsync(projectId, options: options => options.AssigneeId = _currentSession.Id);
-                }
-                else
-                {
-                    issues = await client.Issues.GetAllAsync(options: options => options.AssigneeId = _currentSession.Id);
-                }
-
+                var issues = (_issuesCache ?? LoadIssues()).ToList();
                 return issues
-                     .Select(issue => new TaskDTO($"#{issue.Iid}: {issue.Title}", StringTemplate.Format(stringTemplate, issue)))
+                     .Select(issue => new TaskDTO($"#{issue.IssueId}: {issue.Title}", StringTemplate.Format(stringTemplate, issue)))
                      .ToArray();
             }
             catch (Exception ex)
@@ -459,14 +421,14 @@ namespace GitExtensions.GitLabCommitHintPlugin
             string url = _urlSettings.ValueOrDefault(Settings);
             var token = _personalToken.ValueOrDefault(Settings);
 
-            var client = new GitLabClient(url, token, new HttpClientHandler
-            {
-                AllowAutoRedirect = false,
-            });
+            if (string.IsNullOrEmpty(url) || string.IsNullOrEmpty(token))
+                return null;
+            
+            var client = new GitLabClient(url, token);
 
             try
             {
-                _currentSession = await client.Users.GetCurrentSessionAsync();
+                _currentSession = await client.Users.GetCurrentUserAsync();
             }
             catch (Exception)
             {
@@ -477,6 +439,22 @@ namespace GitExtensions.GitLabCommitHintPlugin
             return client;
         }
 
+        private IEnumerable<Issue> LoadIssues()
+        {
+            if (_gitLabProject is not null)
+            {
+                return _client.Issues.GetAsync(_gitLabProject.Id, new IssueQuery
+                {
+                    AssigneeId = _currentSession.Id,
+                });
+            }
+
+            return _client.Issues.GetAsync(new IssueQuery
+            {
+                AssigneeId = _currentSession.Id,
+            });
+        }
+        
         private class TaskDTO
         {
             public TaskDTO(string title, string text)
