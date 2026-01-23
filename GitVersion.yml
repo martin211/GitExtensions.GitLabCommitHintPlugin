@@ -3,7 +3,7 @@ assembly-versioning-scheme: MajorMinorPatch
 assembly-file-versioning-scheme: MajorMinorPatchTag
 mode: ContinuousDelivery
 branches:
-  master:
-    regex: master
+  main:
+    regex: main
     tag: ''
     increment: Patch
